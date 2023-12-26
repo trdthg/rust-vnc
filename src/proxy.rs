@@ -1,6 +1,8 @@
 use std::io::{Read, Write, Cursor};
 use std::net::{TcpStream, Shutdown};
 use std::thread;
+use log::{debug, warn};
+
 use crate::{Error, Result};
 use crate::protocol::{self, Message};
 
