@@ -78,7 +78,7 @@ fn main() {
             }
         };
 
-        let proxy = match t_vnc::Proxy::from_tcp_streams(server_stream, client_stream) {
+        let proxy = match vnc::Proxy::from_tcp_streams(server_stream, client_stream) {
             Ok(proxy) => proxy,
             Err(error) => {
                 error!("handshake failed: {}", error);
