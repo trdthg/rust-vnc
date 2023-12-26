@@ -108,8 +108,7 @@ impl Event {
                                 let length = (rectangle.width as usize)
                                     * (rectangle.height as usize)
                                     * (format.bits_per_pixel as usize / 8);
-                                let mut pixels = Vec::with_capacity(length);
-                                unsafe { pixels.set_len(length as usize) }
+                                let mut pixels = vec![0; length];
                                 stream.read_exact(&mut pixels)?;
                                 debug!("<- ...pixels");
                                 send!(tx_events, Event::PutPixels(dst, pixels))
@@ -126,8 +125,7 @@ impl Event {
                             }
                             protocol::Encoding::Zrle => {
                                 let length = stream.read_u32::<BigEndian>()?;
-                                let mut data = Vec::with_capacity(length as usize);
-                                unsafe { data.set_len(length as usize) }
+                                let mut data = vec![0; length as usize];
                                 stream.read_exact(&mut data)?;
                                 debug!("<- ...compressed pixels");
                                 let result =
@@ -263,13 +261,12 @@ impl Client {
                 // I hate every single fucker involved in the chain of decisions that
                 // led to this authentication scheme, and doubly so because it is completely
                 // undocumented in what passes for the specification of the RFB protocol.
-                for i in 0..8 {
-                    let c = password[i];
+                for c in &mut password {
                     let mut cs = 0u8;
                     for j in 0..8 {
-                        cs |= ((c >> j) & 1) << (7 - j)
+                        cs |= ((*c >> j) & 1) << (7 - j)
                     }
-                    password[i] = cs;
+                    *c = cs;
                 }
 
                 let mut challenge = [0; 16];

@@ -36,7 +36,8 @@ impl std::fmt::Display for Error {
             Error::AuthenticationFailure(ref descr) => {
                 write!(f, "authentication failure: {}", descr)
             }
-            _ => f.write_str(&self.to_string()),
+            Error::AuthenticationUnavailable => write!(f, "authentication unavailable"),
+            Error::Disconnected => write!(f, "disconnected"),
         }
     }
 }

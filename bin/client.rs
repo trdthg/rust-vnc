@@ -1,9 +1,11 @@
 use byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-use clap::{Arg, Command};
+use clap::{arg, value_parser, Arg, ArgAction, Command};
 use log::{debug, error, info, warn};
 use sdl2::pixels::{Color, PixelFormatEnum as SdlPixelFormat, PixelMasks};
 use sdl2::rect::Rect as SdlRect;
 use std::io::{Cursor, ErrorKind as IoErrorKind, Read, Result as IoResult, Write};
+
+use std::time::Duration;
 
 const FORMAT_MAP: [(SdlPixelFormat, vnc::PixelFormat); 5] = [
     (
@@ -162,7 +164,6 @@ fn mask_cursor(
                     | (((b as u32) << masks.bmask.trailing_zeros()) & masks.bmask)
                     | (((a as u32) << masks.amask.trailing_zeros()) & masks.amask)
             }
-            _ => unreachable!(),
         };
         writer
             .write_uint::<NativeEndian>(packed as u64, size)
@@ -177,7 +178,7 @@ fn mask_cursor(
             Ok(in_color) => {
                 let mask = mask_cursor.read_u8().unwrap();
                 let out_color = match in_color {
-                    Color { r, g, b, a } => Color::RGBA(r, g, b, if mask != 0 { 255 } else { 0 }),
+                    Color { r, g, b, .. } => Color::RGBA(r, g, b, if mask != 0 { 255 } else { 0 }),
                 };
                 write_color(&mut out_cursor, out_size, &out_masks, out_color).unwrap();
             }
@@ -192,16 +193,9 @@ fn main() {
 
     let matches = Command::new("rvncclient")
         .about("VNC client")
+        .arg(arg!(<HOST> "server hostname or IP"))
         .arg(
-            Arg::new("HOST")
-                .help("server hostname or IP")
-                .required(true)
-                .index(1),
-        )
-        .arg(
-            Arg::new("PORT")
-                .help("server port (default: 5900)")
-                .index(2),
+            arg!(<PORT> "server port").value_parser(value_parser!(u16)), // Arg::new("PORT").help("server port").required(true).index(2)
         )
         .arg(
             Arg::new("USERNAME")
@@ -216,35 +210,37 @@ fn main() {
         .arg(
             Arg::new("EXCLUSIVE")
                 .help("request a non-shared session")
-                .long("exclusive"),
+                .long("exclusive")
+                .action(ArgAction::SetFalse),
         )
         .arg(
             Arg::new("VIEW-ONLY")
                 .help("ignore any input")
-                .long("view-only"),
+                .long("view-only")
+                .action(ArgAction::SetFalse),
         )
         .arg(
             Arg::new("QEMU-HACKS")
                 .help("hack around QEMU/XenHVM's braindead VNC server")
-                .long("heinous-qemu-hacks"),
+                .long("heinous-qemu-hacks")
+                .action(ArgAction::SetFalse),
         )
         .get_matches();
 
     let host = matches.get_one::<String>("HOST").unwrap();
-    let port = matches.get_one::<u16>("PORT").to_owned().unwrap_or(&5900);
+    let port = matches.get_one::<u16>("PORT").unwrap();
     let username = matches.get_one::<String>("USERNAME");
     let password = matches.get_one::<String>("PASSWORD");
     let exclusive = matches.get_flag("EXCLUSIVE");
     let view_only = matches.get_flag("VIEW-ONLY");
     let qemu_hacks = matches.get_flag("QEMU-HACKS");
 
-    let sdl_context = sdl2::init().unwrap();
-    let sdl_video = sdl_context.video().unwrap();
-    let mut sdl_timer = sdl_context.timer().unwrap();
-    let mut sdl_events = sdl_context.event_pump().unwrap();
-
     info!("connecting to {}:{}", host, port);
-    let stream = match std::net::TcpStream::connect((host.to_owned(), port.to_owned())) {
+    let stream = match std::net::TcpStream::connect_timeout(
+        &format!("{}:{}", host, port).parse().unwrap(),
+        // (host.to_owned(), port.to_owned()),
+        Duration::from_secs(3),
+    ) {
         Ok(stream) => stream,
         Err(error) => {
             error!("cannot connect to {}:{}: {}", host, port, error);
@@ -260,7 +256,7 @@ fn main() {
                 vnc::client::AuthMethod::Password => {
                     return match password {
                         None => None,
-                        Some(ref password) => {
+                        Some(password) => {
                             let mut key = [0; 8];
                             for (i, byte) in password.bytes().enumerate() {
                                 if i == 8 {
@@ -304,6 +300,11 @@ fn main() {
     let mut vnc_format = vnc.format();
     info!("received {:?}", vnc_format);
 
+    let sdl_context = sdl2::init().unwrap();
+    let sdl_video = sdl_context.video().unwrap();
+    let sdl_timer = sdl_context.timer().unwrap();
+    let mut sdl_events = sdl_context.event_pump().unwrap();
+
     let sdl_format = match pixel_format_vnc_to_sdl(vnc_format) {
         Some(format) => format,
         None => {
@@ -345,7 +346,7 @@ fn main() {
     sdl_video.text_input().start();
 
     let mut canvas = window.into_canvas().build().unwrap();
-    let mut renderer = canvas.texture_creator();
+    let renderer = canvas.texture_creator();
     let mut screen = renderer
         .create_texture_streaming(sdl_format, width as u32, height as u32)
         .unwrap();
@@ -393,7 +394,10 @@ fn main() {
                 Event::Resize(new_width, new_height) => {
                     width = new_width;
                     height = new_height;
-                    canvas.window_mut().set_size(width as u32, height as u32);
+                    canvas
+                        .window_mut()
+                        .set_size(width as u32, height as u32)
+                        .expect("canvas resize window failed");
                     screen = renderer
                         .create_texture_streaming(sdl_format, width as u32, height as u32)
                         .unwrap();
@@ -413,7 +417,9 @@ fn main() {
                             sdl_format.byte_size_of_pixels(vnc_rect.width as usize),
                         )
                         .unwrap();
-                    canvas.copy(&screen, Some(sdl_rect), Some(sdl_rect));
+                    canvas
+                        .copy(&screen, Some(sdl_rect), Some(sdl_rect))
+                        .expect("canvas copy failed");
                     incremental |= vnc_rect
                         == vnc::Rect {
                             left: 0,
@@ -446,7 +452,9 @@ fn main() {
                             sdl_format.byte_size_of_pixels(vnc_dst.width as usize),
                         )
                         .unwrap();
-                    canvas.copy(&screen, Some(sdl_dst), Some(sdl_dst));
+                    canvas
+                        .copy(&screen, Some(sdl_dst), Some(sdl_dst))
+                        .expect("canvas copy failed");
                 }
                 Event::EndOfFrame => {
                     if qemu_hacks {
@@ -513,7 +521,9 @@ fn main() {
         }
 
         if let Some(cursor_rect) = cursor_rect {
-            canvas.copy(&screen, Some(cursor_rect), Some(cursor_rect));
+            canvas
+                .copy(&screen, Some(cursor_rect), Some(cursor_rect))
+                .expect("canvas copy failed");
         }
 
         match cursor {
@@ -523,8 +533,8 @@ fn main() {
                 let raw_cursor_rect = SdlRect::new(
                     mouse_x as i32 - hotspot_x as i32,
                     mouse_y as i32 - hotspot_y as i32,
-                    cursor.query().width as u32,
-                    cursor.query().height as u32,
+                    cursor.query().width,
+                    cursor.query().height,
                 );
                 let screen_rect = SdlRect::new(0, 0, width as u32, height as u32);
                 let clipped_cursor_rect = raw_cursor_rect & screen_rect;
@@ -535,7 +545,9 @@ fn main() {
                         clipped_cursor_rect.width(),
                         clipped_cursor_rect.height(),
                     );
-                    canvas.copy(&cursor, Some(source_rect), Some(clipped_cursor_rect));
+                    canvas
+                        .copy(cursor, Some(source_rect), Some(clipped_cursor_rect))
+                        .expect("canvas copy failed");
                 }
                 cursor_rect = clipped_cursor_rect;
             }
@@ -556,7 +568,9 @@ fn main() {
                     ..
                 } => {
                     let screen_rect = SdlRect::new(0, 0, width as u32, height as u32);
-                    canvas.copy(&screen, None, Some(screen_rect));
+                    canvas
+                        .copy(&screen, None, Some(screen_rect))
+                        .expect("canvas copy failed");
                     canvas.present()
                 }
                 _ => (),
@@ -576,17 +590,13 @@ fn main() {
                     ..
                 } => {
                     use sdl2::keyboard::Keycode;
-                    let down = match event {
-                        Event::KeyDown { .. } => true,
-                        _ => false,
-                    };
+                    let down = matches!(event, Event::KeyDown { .. });
                     match keycode {
                         Keycode::LCtrl | Keycode::RCtrl => key_ctrl = down,
                         _ => (),
                     }
-                    match map_special_key(key_ctrl, keycode) {
-                        Some(keysym) => vnc.send_key_event(down, keysym).unwrap(),
-                        None => (),
+                    if let Some(keysym) = map_special_key(key_ctrl, keycode) {
+                        vnc.send_key_event(down, keysym).unwrap();
                     }
                 }
                 Event::TextInput { text, .. } => {
@@ -742,7 +752,7 @@ fn map_special_key(alnum_ok: bool, keycode: sdl2::keyboard::Keycode) -> Option<u
         _ => 0,
     };
     if x11code != 0 && alnum_ok {
-        return Some(x11code as u32);
+        return Some(x11code);
     }
 
     let x11code = match keycode {
@@ -818,7 +828,7 @@ fn map_special_key(alnum_ok: bool, keycode: sdl2::keyboard::Keycode) -> Option<u
         _ => 0,
     };
     if x11code != 0 {
-        Some(x11code as u32)
+        Some(x11code)
     } else {
         None
     }

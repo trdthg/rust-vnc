@@ -1,4 +1,4 @@
-use clap::{Arg, Command};
+use clap::{value_parser, Arg, Command};
 use log::{error, info};
 
 fn main() {
@@ -14,6 +14,7 @@ fn main() {
         )
         .arg(
             Arg::new("CONNECT-PORT")
+                .value_parser(value_parser!(u16))
                 .help("server port (default: 5900)")
                 .index(2),
         )
@@ -32,12 +33,10 @@ fn main() {
     let connect_host = matches.get_one::<String>("CONNECT-HOST").unwrap();
     let connect_port = matches.get_one::<u16>("CONNECT-PORT").unwrap_or(&5900);
     let listen_host = matches
-        .get_one::<String>("LISTEN-HOST")
-        .and_then(|x| Some(x.to_owned()))
+        .get_one::<String>("LISTEN-HOST").map(|x| x.to_owned())
         .unwrap_or("localhost".to_owned());
     let listen_port = matches
-        .get_one::<u16>("LISTEN-PORT")
-        .and_then(|x| Some(x.to_owned()))
+        .get_one::<u16>("LISTEN-PORT").map(|x| x.to_owned())
         .unwrap_or(connect_port + 1);
 
     info!("listening at {}:{}", listen_host, listen_port);
