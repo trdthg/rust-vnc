@@ -1,14 +1,14 @@
 [package]
-name = "t-vnc"
-version = "0.4.0"
-authors = ["whitequark <whitequark@whitequark.org>"]
-license = "MIT/Apache-2.0"
-readme = "README.md"
-repository = "https://github.com/whitequark/rust-vnc"
-homepage = "https://github.com/whitequark/rust-vnc"
+name          = "t-vnc"
+version       = "0.4.0"
+authors       = ["whitequark <whitequark@whitequark.org>"]
+license       = "MIT/Apache-2.0"
+readme        = "README.md"
+repository    = "https://github.com/whitequark/rust-vnc"
+homepage      = "https://github.com/whitequark/rust-vnc"
 documentation = "https://whitequark.github.io/rust-vnc/vnc"
-description = "An implementation of VNC protocol, client state machine, a client and a proxy"
-edition = "2021"
+description   = "An implementation of VNC protocol, client state machine, a client and a proxy"
+edition       = "2021"
 
 [[bin]]
 name = "rvncclient"
@@ -22,11 +22,11 @@ path = "bin/proxy.rs"
 name = "vnc"
 
 [dependencies]
-log = { version = "0.4.20" }
+log        = { version = "0.4.20" }
 env_logger = { version = "0.10.1" }
-clap = { version = "4.4.11" }
+clap       = { version = "4.4.11" }
 
-x11 = { version = "2.3" }
-sdl2 = { version = "0.36.0" }
+x11       = { version = "2.3" }
+sdl2      = { version = "0.36.0" }
 byteorder = { version = "1.5.0" }
-flate2 = { version = "1.0.28" }
+flate2    = { version = "1.0.28" }
