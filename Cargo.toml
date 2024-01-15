@@ -18,15 +18,11 @@ path = "bin/client.rs"
 name = "rvncproxy"
 path = "bin/proxy.rs"
 
-[lib]
-name = "vnc"
-
 [dependencies]
 log        = { version = "0.4.20" }
 env_logger = { version = "0.10.1" }
 clap       = { version = "4.4.11" }
-
-x11       = { version = "2.3" }
-sdl2      = { version = "0.36.0" }
-byteorder = { version = "1.5.0" }
-flate2    = { version = "1.0.28" }
+x11        = { version = "2.3" }
+sdl2       = { version = "0.36.0" }
+byteorder  = { version = "1.5.0" }
+flate2     = { version = "1.0.28" }

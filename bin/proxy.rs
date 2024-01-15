@@ -33,10 +33,12 @@ fn main() {
     let connect_host = matches.get_one::<String>("CONNECT-HOST").unwrap();
     let connect_port = matches.get_one::<u16>("CONNECT-PORT").unwrap_or(&5900);
     let listen_host = matches
-        .get_one::<String>("LISTEN-HOST").map(|x| x.to_owned())
+        .get_one::<String>("LISTEN-HOST")
+        .map(|x| x.to_owned())
         .unwrap_or("localhost".to_owned());
     let listen_port = matches
-        .get_one::<u16>("LISTEN-PORT").map(|x| x.to_owned())
+        .get_one::<u16>("LISTEN-PORT")
+        .map(|x| x.to_owned())
         .unwrap_or(connect_port + 1);
 
     info!("listening at {}:{}", listen_host, listen_port);
@@ -77,7 +79,7 @@ fn main() {
             }
         };
 
-        let proxy = match vnc::Proxy::from_tcp_streams(server_stream, client_stream) {
+        let proxy = match t_vnc::Proxy::from_tcp_streams(server_stream, client_stream) {
             Ok(proxy) => proxy,
             Err(error) => {
                 error!("handshake failed: {}", error);

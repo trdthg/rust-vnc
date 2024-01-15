@@ -7,10 +7,10 @@ use std::io::{Cursor, ErrorKind as IoErrorKind, Read, Result as IoResult, Write}
 
 use std::time::Duration;
 
-const FORMAT_MAP: [(SdlPixelFormat, vnc::PixelFormat); 5] = [
+const FORMAT_MAP: [(SdlPixelFormat, t_vnc::PixelFormat); 5] = [
     (
         SdlPixelFormat::RGB888,
-        vnc::PixelFormat {
+        t_vnc::PixelFormat {
             bits_per_pixel: 32,
             depth: 24,
             big_endian: false,
@@ -25,7 +25,7 @@ const FORMAT_MAP: [(SdlPixelFormat, vnc::PixelFormat); 5] = [
     ),
     (
         SdlPixelFormat::BGR888,
-        vnc::PixelFormat {
+        t_vnc::PixelFormat {
             bits_per_pixel: 32,
             depth: 24,
             big_endian: false,
@@ -39,19 +39,19 @@ const FORMAT_MAP: [(SdlPixelFormat, vnc::PixelFormat); 5] = [
         },
     ),
     // these break x11vnc
-    // (SdlPixelFormat::RGB24, vnc::PixelFormat {
+    // (SdlPixelFormat::RGB24, t_vnc::PixelFormat {
     //     bits_per_pixel: 24, depth: 24, big_endian: false, true_colour: true,
     //     red_max: 255,  green_max: 255, blue_max: 255,
     //     red_shift: 16, green_shift: 8, blue_shift: 0
     // }),
-    // (SdlPixelFormat::BGR24, vnc::PixelFormat {
+    // (SdlPixelFormat::BGR24, t_vnc::PixelFormat {
     //     bits_per_pixel: 24, depth: 24, big_endian: true, true_colour: true,
     //     red_max: 255,  green_max: 255, blue_max: 255,
     //     red_shift: 0, green_shift: 8, blue_shift: 16
     // }),
     (
         SdlPixelFormat::RGB565,
-        vnc::PixelFormat {
+        t_vnc::PixelFormat {
             bits_per_pixel: 16,
             depth: 16,
             big_endian: false,
@@ -66,7 +66,7 @@ const FORMAT_MAP: [(SdlPixelFormat, vnc::PixelFormat); 5] = [
     ),
     (
         SdlPixelFormat::BGR565,
-        vnc::PixelFormat {
+        t_vnc::PixelFormat {
             bits_per_pixel: 16,
             depth: 16,
             big_endian: false,
@@ -81,7 +81,7 @@ const FORMAT_MAP: [(SdlPixelFormat, vnc::PixelFormat); 5] = [
     ),
     (
         SdlPixelFormat::RGB332,
-        vnc::PixelFormat {
+        t_vnc::PixelFormat {
             bits_per_pixel: 8,
             depth: 8,
             big_endian: false,
@@ -96,7 +96,7 @@ const FORMAT_MAP: [(SdlPixelFormat, vnc::PixelFormat); 5] = [
     ),
 ];
 
-fn pixel_format_vnc_to_sdl(vnc_format: vnc::PixelFormat) -> Option<SdlPixelFormat> {
+fn pixel_format_vnc_to_sdl(vnc_format: t_vnc::PixelFormat) -> Option<SdlPixelFormat> {
     for format in &FORMAT_MAP {
         if format.1 == vnc_format {
             return Some(format.0);
@@ -105,7 +105,7 @@ fn pixel_format_vnc_to_sdl(vnc_format: vnc::PixelFormat) -> Option<SdlPixelForma
     None
 }
 
-fn pixel_format_sdl_to_vnc(sdl_format: SdlPixelFormat) -> Option<vnc::PixelFormat> {
+fn pixel_format_sdl_to_vnc(sdl_format: SdlPixelFormat) -> Option<t_vnc::PixelFormat> {
     for format in &FORMAT_MAP {
         if format.0 == sdl_format {
             return Some(format.1);
@@ -115,7 +115,7 @@ fn pixel_format_sdl_to_vnc(sdl_format: SdlPixelFormat) -> Option<vnc::PixelForma
 }
 
 fn mask_cursor(
-    vnc_in_format: vnc::PixelFormat,
+    vnc_in_format: t_vnc::PixelFormat,
     in_pixels: Vec<u8>,
     mask_pixels: Vec<u8>,
 ) -> (SdlPixelFormat, Vec<u8>) {
@@ -248,12 +248,12 @@ fn main() {
         }
     };
 
-    let mut vnc = match vnc::Client::from_tcp_stream(stream, !exclusive, |methods| {
+    let mut vnc = match t_vnc::Client::from_tcp_stream(stream, !exclusive, |methods| {
         debug!("available authentication methods: {:?}", methods);
         for method in methods {
             match method {
-                vnc::client::AuthMethod::None => return Some(vnc::client::AuthChoice::None),
-                vnc::client::AuthMethod::Password => {
+                t_vnc::client::AuthMethod::None => return Some(t_vnc::client::AuthChoice::None),
+                t_vnc::client::AuthMethod::Password => {
                     return match password {
                         None => None,
                         Some(password) => {
@@ -264,13 +264,13 @@ fn main() {
                                 }
                                 key[i] = byte
                             }
-                            Some(vnc::client::AuthChoice::Password(key))
+                            Some(t_vnc::client::AuthChoice::Password(key))
                         }
                     }
                 }
-                vnc::client::AuthMethod::AppleRemoteDesktop => match (username, password) {
+                t_vnc::client::AuthMethod::AppleRemoteDesktop => match (username, password) {
                     (Some(username), Some(password)) => {
-                        return Some(vnc::client::AuthChoice::AppleRemoteDesktop(
+                        return Some(t_vnc::client::AuthChoice::AppleRemoteDesktop(
                             username.to_owned(),
                             password.to_owned(),
                         ))
@@ -322,15 +322,15 @@ fn main() {
     info!("rendering to a {:?} texture", sdl_format);
 
     if qemu_hacks {
-        vnc.set_encodings(&[vnc::Encoding::Zrle, vnc::Encoding::DesktopSize])
+        vnc.set_encodings(&[t_vnc::Encoding::Zrle, t_vnc::Encoding::DesktopSize])
             .unwrap()
     } else {
         vnc.set_encodings(&[
-            vnc::Encoding::Zrle,
-            vnc::Encoding::CopyRect,
-            vnc::Encoding::Raw,
-            vnc::Encoding::Cursor,
-            vnc::Encoding::DesktopSize,
+            t_vnc::Encoding::Zrle,
+            t_vnc::Encoding::CopyRect,
+            t_vnc::Encoding::Raw,
+            t_vnc::Encoding::Cursor,
+            t_vnc::Encoding::DesktopSize,
         ])
         .unwrap()
     }
@@ -362,7 +362,7 @@ fn main() {
 
     canvas.clear();
     vnc.request_update(
-        vnc::Rect {
+        t_vnc::Rect {
             left: 0,
             top: 0,
             width,
@@ -383,7 +383,7 @@ fn main() {
         canvas.present();
 
         for event in vnc.poll_iter() {
-            use vnc::client::Event;
+            use t_vnc::client::Event;
 
             match event {
                 Event::Disconnected(None) => break 'running,
@@ -421,7 +421,7 @@ fn main() {
                         .copy(&screen, Some(sdl_rect), Some(sdl_rect))
                         .expect("canvas copy failed");
                     incremental |= vnc_rect
-                        == vnc::Rect {
+                        == t_vnc::Rect {
                             left: 0,
                             top: 0,
                             width,
@@ -666,7 +666,7 @@ fn main() {
             qemu_next_update = sdl_timer.ticks() + qemu_network_rtt / 2;
         } else {
             vnc.request_update(
-                vnc::Rect {
+                t_vnc::Rect {
                     left: 0,
                     top: 0,
                     width,
