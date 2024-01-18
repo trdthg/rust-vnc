@@ -10,9 +10,14 @@ documentation = "https://whitequark.github.io/rust-vnc/vnc"
 description   = "An implementation of VNC protocol, client state machine, a client and a proxy"
 edition       = "2021"
 
+[features]
+default    = []
+rvncclient = ["x11", "sdl2"]
+
 [[bin]]
-name = "rvncclient"
-path = "bin/client.rs"
+name              = "rvncclient"
+path              = "bin/client.rs"
+required-features = ["rvncclient"]
 
 [[bin]]
 name = "rvncproxy"
@@ -22,7 +27,7 @@ path = "bin/proxy.rs"
 log        = { version = "0.4.20" }
 env_logger = { version = "0.10.1" }
 clap       = { version = "4.4.11" }
-x11        = { version = "2.3" }
-sdl2       = { version = "0.36.0" }
 byteorder  = { version = "1.5.0" }
 flate2     = { version = "1.0.28" }
+x11        = { version = "2.3", optional = true }
+sdl2       = { version = "0.36.0", optional = true }

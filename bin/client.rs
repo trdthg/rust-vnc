@@ -1,8 +1,10 @@
 use byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use clap::{arg, value_parser, Arg, ArgAction, Command};
 use log::{debug, error, info, warn};
-use sdl2::pixels::{Color, PixelFormatEnum as SdlPixelFormat, PixelMasks};
-use sdl2::rect::Rect as SdlRect;
+use sdl2::{
+    pixels::{Color, PixelFormatEnum as SdlPixelFormat, PixelMasks},
+    rect::Rect as SdlRect,
+};
 use std::io::{Cursor, ErrorKind as IoErrorKind, Read, Result as IoResult, Write};
 
 use std::time::Duration;
