@@ -290,7 +290,7 @@ impl Decoder {
                     width,
                     height,
                 };
-                if let false = callback(tile, pixels)? {
+                if !callback(tile, pixels)? {
                     return Ok(false);
                 }
 
