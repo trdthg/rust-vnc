@@ -161,8 +161,11 @@ impl Message for SecurityResult {
 
 #[derive(Debug)]
 pub struct AppleAuthHandshake {
+    #[allow(dead_code)]
     pub generator: u16,
+    #[allow(dead_code)]
     pub prime: Vec<u8>,
+    #[allow(dead_code)]
     pub peer_key: Vec<u8>,
 }
 
